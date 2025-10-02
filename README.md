@@ -42,7 +42,7 @@ ansible-playbook site.yml -K --skip-tags upgrade
 ## Screenshots
 
 ### ✅ Ansible Run
-![Ansible Run](images/ansible_run.png)
+![Ansible Run](images/ansible-run.png)
 
 ### 🔒 Validation (UFW, Fail2Ban, SSH, MOTD)
 ![Validation](images/validation.png)
