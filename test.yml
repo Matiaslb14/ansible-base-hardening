@@ -1,0 +1,21 @@
+- name: Test playbook - package + facts
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Ensure apt cache is updated
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install htop
+      apt:
+        name: htop
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Print hostname and IP
+      debug:
+        msg: "Host={{ ansible_hostname }} | IP={{ ansible_default_ipv4.address }}"

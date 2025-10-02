@@ -1,0 +1,135 @@
+---
+# ===== APT CACHE & UPGRADE =====
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+
+- name: Safe upgrade
+  apt:
+    upgrade: safe
+    force_apt_get: yes
+    dpkg_options: "force-confdef,force-confold"
+    autoremove: yes
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  when: ansible_os_family == "Debian"
+  tags: [upgrade]
+
+# ===== USER + SSH KEY =====
+- name: Create admin user
+  user:
+    name: "{{ common_user }}"
+    uid: "{{ common_user_uid }}"
+    groups: "{{ common_user_groups | join(',') }}"
+    shell: /bin/bash
+    create_home: yes
+    state: present
+
+- name: Ensure .ssh dir
+  file:
+    path: "/home/{{ common_user }}/.ssh"
+    state: directory
+    owner: "{{ common_user }}"
+    group: "{{ common_user }}"
+    mode: '0700'
+
+- name: Authorized key
+  copy:
+    content: "{{ common_ssh_pubkey }}"
+    dest: "/home/{{ common_user }}/.ssh/authorized_keys"
+    owner: "{{ common_user }}"
+    group: "{{ common_user }}"
+    mode: '0600'
+
+- name: Passwordless sudo for sudo group
+  copy:
+    dest: /etc/sudoers.d/90-sudo-nopasswd
+    content: "%sudo ALL=(ALL) NOPASSWD:ALL\n"
+    owner: root
+    group: root
+    mode: '0440'
+
+# ===== BASE PACKAGES (ROBUSTO) =====
+- name: Install base packages (with retry)
+  apt:
+    name:
+      - fail2ban
+      - unattended-upgrades
+      - ufw
+      - vim
+      - curl
+      - git
+    state: present
+    update_cache: yes
+    force_apt_get: yes
+    dpkg_options: "force-confdef,force-confold"
+    lock_timeout: 180
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  register: apt_install
+  until: apt_install is succeeded
+  retries: 6
+  delay: 15
+  when: ansible_os_family == "Debian"
+  tags: [pkgs]
+
+# ===== UFW =====
+- name: Allow ports in UFW
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+  loop: "{{ ufw_allowed_ports }}"
+  when: ansible_os_family == "Debian"
+
+- name: Enable UFW (default deny)
+  ufw:
+    state: enabled
+    policy: deny
+  when: ansible_os_family == "Debian"
+  notify: Restart UFW
+
+# ===== FAIL2BAN =====
+- name: Deploy Fail2ban jail
+  template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Fail2ban
+
+# ===== UNATTENDED-UPGRADES =====
+- name: Configure unattended-upgrades
+  copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "{{ '1' if unattended_upgrades else '0' }}";
+    owner: root
+    group: root
+    mode: '0644'
+  when: ansible_os_family == "Debian"
+
+# ===== SSH HARDENING =====
+- name: SSH hardening
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+    backup: yes
+  loop:
+    - { regexp: '^PasswordAuthentication', line: 'PasswordAuthentication no' }
+    - { regexp: '^PermitRootLogin',       line: 'PermitRootLogin no' }
+  notify: Restart SSH
+
+# ===== MOTD =====
+- name: MOTD banner
+  template:
+    src: motd.j2
+    dest: /etc/motd
+    owner: root
+    group: root
+    mode: '0644'

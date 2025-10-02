@@ -1,0 +1,5 @@
+- name: Base hardening for Linux servers
+  hosts: all
+  become: true
+  roles:
+    - base_hardening
