@@ -29,7 +29,7 @@ ansible-base-hardening/
 
 ## ⚙️ Usage
 1. Clone the repository:
-```bash
+
 git clone https://github.com/Matiaslb14/ansible-base-hardening.git
 cd ansible-base-hardening
 
@@ -39,10 +39,13 @@ ansible-playbook site.yml -K --skip-tags upgrade
 
 3. ansible-playbook site.yml -K --tags upgrade
 
-📸 Screenshots
-✅ Ansible Run
+## Screenshots
 
-🔒 Validation (UFW, Fail2Ban, SSH, MOTD)
+### ✅ Ansible Run
+![Ansible Run](images/ansible_run.png)
+
+### 🔒 Validation (UFW, Fail2Ban, SSH, MOTD)
+![Validation](images/validation.png)
 
 🔍 Verification
 
